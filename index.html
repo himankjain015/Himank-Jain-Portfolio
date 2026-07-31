@@ -366,16 +366,20 @@ h1.hero-name span{
 }
 #videoLightbox.open{display:flex;}
 .video-frame-wrap{
-  width:min(90vw,1000px);aspect-ratio:16/9;border-radius:12px;overflow:hidden;
-  box-shadow:0 40px 100px rgba(0,0,0,.6);background:#000;position:relative;
+  position:relative;width:min(92vw,1000px);height:0;padding-top:56.25%;
+  border-radius:12px;overflow:hidden;
+  box-shadow:0 40px 100px rgba(0,0,0,.6);background:#000;
 }
-.video-frame-wrap:fullscreen{width:100vw;height:100vh;border-radius:0;}
-.video-frame-wrap iframe{width:100%;height:100%;border:0;}
+.video-frame-wrap iframe{position:absolute;inset:0;width:100%;height:100%;border:0;}
+.video-frame-wrap.fs-mode{
+  position:fixed;top:0;left:0;right:0;bottom:0;width:100vw;height:100vh;
+  padding-top:0;border-radius:0;z-index:9999;
+}
 .fs-btn{
-  position:absolute;bottom:14px;right:14px;width:42px;height:42px;border-radius:10px;
-  background:rgba(6,10,20,.75);border:1px solid rgba(255,255,255,.25);
+  position:absolute;bottom:14px;right:14px;width:44px;height:44px;border-radius:10px;
+  background:rgba(6,10,20,.8);border:1px solid rgba(255,255,255,.28);
   display:flex;align-items:center;justify-content:center;cursor:pointer;
-  transition:all .3s ease;z-index:5;
+  transition:all .3s ease;z-index:20;
 }
 .fs-btn:hover{background:var(--blue);border-color:var(--blue);}
 .fs-btn svg{width:18px;height:18px;stroke:#fff;}
@@ -515,6 +519,12 @@ footer{padding:70px 0 40px;border-top:1px solid var(--line);margin-top:60px;}
   .hero-meta{gap:30px;}
   #hoverPreview{display:none;}
   .cat-row .left{gap:14px;}
+  #videoLightbox, #resumeLightbox{padding:0;}
+  .video-frame-wrap{width:100vw;padding-top:56.25%;border-radius:0;}
+  .video-frame-wrap.fs-mode{padding-top:0;}
+  .resume-frame-wrap{width:100vw;height:78vh;border-radius:0;}
+  .resume-download-btn{margin-top:14px;}
+  #videoLightbox .lb-close, #resumeLightbox .lb-close{top:14px;right:14px;}
 }
 </style>
 </head>
@@ -987,17 +997,14 @@ function openVideo(id, name){
 function closeVideo(){
   document.getElementById('videoLightbox').classList.remove('open');
   document.getElementById('vidFrame').src = '';
+  document.getElementById('videoFrameWrap').classList.remove('fs-mode');
 }
 document.getElementById('videoLightbox').addEventListener('click', e=>{
   if(e.target.id==='videoLightbox') closeVideo();
 });
 function toggleVideoFullscreen(){
   const el = document.getElementById('videoFrameWrap');
-  if(!document.fullscreenElement){
-    (el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen).call(el);
-  } else {
-    (document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen).call(document);
-  }
+  el.classList.toggle('fs-mode');
 }
 
 /* ================= RESUME MODAL ================= */
