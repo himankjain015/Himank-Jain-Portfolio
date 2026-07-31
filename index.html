@@ -371,6 +371,7 @@ h1.hero-name span{
   box-shadow:0 40px 100px rgba(0,0,0,.6);background:#000;
 }
 .video-frame-wrap iframe{position:absolute;inset:0;width:100%;height:100%;border:0;}
+.video-frame-wrap video{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000;}
 .video-frame-wrap.fs-mode{
   position:fixed;top:0;left:0;right:0;bottom:0;width:100vw;height:100dvh;
   padding-top:0;border-radius:0;z-index:9999;
@@ -684,7 +685,8 @@ footer{padding:70px 0 40px;border-top:1px solid var(--line);margin-top:60px;}
   <div class="lb-close" onclick="closeVideo()">✕</div>
   <div class="video-frame-wrap" id="videoFrameWrap">
     <div class="vid-loader" id="vidLoader"><span></span></div>
-    <iframe id="vidFrame" src="" allow="autoplay; fullscreen" allowfullscreen loading="lazy" onload="document.getElementById('vidLoader').style.display='none';"></iframe>
+    <video id="vidNative" controls playsinline webkit-playsinline="true" preload="metadata"></video>
+    <iframe id="vidFrame" src="" allow="autoplay; fullscreen" allowfullscreen loading="lazy" style="display:none;"></iframe>
   </div>
   <a id="vidFallback" class="vid-fallback" href="#" target="_blank">Video not loading? Open directly in Google Drive ↗</a>
 </div>
@@ -994,15 +996,51 @@ document.getElementById('lightbox').addEventListener('click', e=>{
 
 /* ================= VIDEO LIGHTBOX ================= */
 function openVideo(id, name){
-  document.getElementById('vidLoader').style.display = 'flex';
-  document.getElementById('vidFrame').src = drivePreview(id);
+  const loader = document.getElementById('vidLoader');
+  const nativeVid = document.getElementById('vidNative');
+  const frame = document.getElementById('vidFrame');
+
+  loader.style.display = 'flex';
+  frame.style.display = 'none';
+  frame.src = '';
+  nativeVid.style.display = 'block';
+  nativeVid.src = `https://drive.google.com/uc?export=download&id=${id}`;
+
+  // If direct playback fails (common for very large files), fall back to Drive's embedded player
+  nativeVid.onerror = function(){
+    nativeVid.style.display = 'none';
+    nativeVid.removeAttribute('src');
+    frame.style.display = 'block';
+    frame.src = drivePreview(id);
+  };
+  frame.onload = function(){ loader.style.display = 'none'; };
+  nativeVid.onloadeddata = function(){ loader.style.display = 'none'; };
+  nativeVid.oncanplay = function(){ loader.style.display = 'none'; nativeVid.play().catch(()=>{}); };
+
+  // Safety net: if nothing happens within 6s, fall back to Drive's player anyway
+  clearTimeout(window.__vidFallbackTimer);
+  window.__vidFallbackTimer = setTimeout(()=>{
+    if(nativeVid.readyState < 2){
+      nativeVid.style.display = 'none';
+      nativeVid.removeAttribute('src');
+      frame.style.display = 'block';
+      frame.src = drivePreview(id);
+    }
+  }, 6000);
+
   document.getElementById('vidFallback').href = `https://drive.google.com/file/d/${id}/view`;
   document.getElementById('videoFrameWrap').classList.add('fs-mode');
   document.getElementById('videoLightbox').classList.add('open');
 }
 function closeVideo(){
+  const nativeVid = document.getElementById('vidNative');
+  const frame = document.getElementById('vidFrame');
+  clearTimeout(window.__vidFallbackTimer);
   document.getElementById('videoLightbox').classList.remove('open');
-  document.getElementById('vidFrame').src = '';
+  nativeVid.pause();
+  nativeVid.removeAttribute('src');
+  nativeVid.load();
+  frame.src = '';
   document.getElementById('videoFrameWrap').classList.remove('fs-mode');
 }
 document.getElementById('videoLightbox').addEventListener('click', e=>{
