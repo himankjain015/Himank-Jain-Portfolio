@@ -390,6 +390,14 @@ h1.hero-name span{
   animation:vidspin .8s linear infinite;
 }
 @keyframes vidspin{to{transform:rotate(360deg);}}
+.rotate-btn{
+  position:absolute;bottom:16px;right:16px;display:flex;align-items:center;gap:8px;
+  padding:10px 16px;border-radius:30px;background:rgba(6,10,20,.82);
+  border:1px solid rgba(255,255,255,.28);color:#fff;font-size:.78rem;font-weight:500;
+  cursor:pointer;z-index:10000;transition:all .3s ease;
+}
+.rotate-btn:hover{background:var(--blue);border-color:var(--blue);}
+.rotate-btn svg{width:16px;height:16px;}
 .vid-fallback{
   margin-top:20px;color:var(--muted);font-size:.82rem;text-decoration:none;
   border-bottom:1px solid var(--line);padding-bottom:2px;transition:color .3s ease;
@@ -687,6 +695,10 @@ footer{padding:70px 0 40px;border-top:1px solid var(--line);margin-top:60px;}
     <div class="vid-loader" id="vidLoader"><span></span></div>
     <video id="vidNative" controls playsinline webkit-playsinline="true" preload="metadata"></video>
     <iframe id="vidFrame" src="" allow="autoplay; fullscreen" allowfullscreen loading="lazy" style="display:none;"></iframe>
+    <div class="rotate-btn" id="rotateBtn" onclick="goLandscape()" title="Rotate to landscape fullscreen">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="10" rx="2"/><path d="M18 3l2 2-2 2M6 21l-2-2 2-2"/></svg>
+      <span>Fullscreen</span>
+    </div>
   </div>
   <a id="vidFallback" class="vid-fallback" href="#" target="_blank">Video not loading? Open directly in Google Drive ↗</a>
 </div>
@@ -995,6 +1007,30 @@ document.getElementById('lightbox').addEventListener('click', e=>{
 });
 
 /* ================= VIDEO LIGHTBOX ================= */
+function enterFullLandscape(){
+  const nativeVid = document.getElementById('vidNative');
+  const wrap = document.getElementById('videoFrameWrap');
+  try{
+    if(nativeVid.webkitEnterFullscreen){
+      // iOS Safari native video fullscreen (auto-handles landscape rotation)
+      nativeVid.webkitEnterFullscreen();
+    } else if(wrap.requestFullscreen){
+      wrap.requestFullscreen().then(()=>{
+        if(screen.orientation && screen.orientation.lock){
+          screen.orientation.lock('landscape').catch(()=>{});
+        }
+      }).catch(()=>{});
+    } else if(nativeVid.requestFullscreen){
+      nativeVid.requestFullscreen().then(()=>{
+        if(screen.orientation && screen.orientation.lock){
+          screen.orientation.lock('landscape').catch(()=>{});
+        }
+      }).catch(()=>{});
+    }
+  }catch(e){}
+}
+function goLandscape(){ enterFullLandscape(); }
+
 function openVideo(id, name){
   const loader = document.getElementById('vidLoader');
   const nativeVid = document.getElementById('vidNative');
@@ -1005,6 +1041,7 @@ function openVideo(id, name){
   frame.src = '';
   nativeVid.style.display = 'block';
   nativeVid.src = `https://drive.google.com/uc?export=download&id=${id}`;
+  let autoFsTried = false;
 
   // If direct playback fails (common for very large files), fall back to Drive's embedded player
   nativeVid.onerror = function(){
@@ -1015,7 +1052,14 @@ function openVideo(id, name){
   };
   frame.onload = function(){ loader.style.display = 'none'; };
   nativeVid.onloadeddata = function(){ loader.style.display = 'none'; };
-  nativeVid.oncanplay = function(){ loader.style.display = 'none'; nativeVid.play().catch(()=>{}); };
+  nativeVid.oncanplay = function(){
+    loader.style.display = 'none';
+    nativeVid.play().catch(()=>{});
+    if(!autoFsTried && window.innerWidth <= 860){
+      autoFsTried = true;
+      enterFullLandscape();
+    }
+  };
 
   // Safety net: if nothing happens within 6s, fall back to Drive's player anyway
   clearTimeout(window.__vidFallbackTimer);
@@ -1036,6 +1080,8 @@ function closeVideo(){
   const nativeVid = document.getElementById('vidNative');
   const frame = document.getElementById('vidFrame');
   clearTimeout(window.__vidFallbackTimer);
+  if(document.fullscreenElement) document.exitFullscreen().catch(()=>{});
+  if(screen.orientation && screen.orientation.unlock) screen.orientation.unlock();
   document.getElementById('videoLightbox').classList.remove('open');
   nativeVid.pause();
   nativeVid.removeAttribute('src');
